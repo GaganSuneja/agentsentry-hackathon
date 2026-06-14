@@ -89,7 +89,9 @@ export function FindingsTable({
           const judgment =
             typeof finding.evidence.judgment === "string"
               ? finding.evidence.judgment
-              : null;
+              : typeof finding.evidence.llm_judge?.rationale === "string"
+                ? finding.evidence.llm_judge.rationale
+                : null;
 
           return (
             <TableRow key={finding.id}>

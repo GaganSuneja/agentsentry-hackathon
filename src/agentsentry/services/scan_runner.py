@@ -12,6 +12,7 @@ from agentsentry.attacks.base import AttackBase
 from agentsentry.models import Agent, Scan, ScanStatus
 from agentsentry.models.finding import Finding, FindingStatus
 from agentsentry.guard import GuardedTarget
+from agentsentry.scoring.llm_judge import LLMJudge
 from agentsentry.services.target_client import TargetAgent, build_target
 from agentsentry.storage import Storage
 
@@ -76,11 +77,29 @@ async def run_scan(
     if defense_enabled:
         target = GuardedTarget(target, agent_id=agent.id)
 
+    judge = LLMJudge()
     findings: list[Finding] = []
     try:
         for attack in attacks:
             log.info("attack_running", scan_id=scan.id, attack_id=attack.metadata.id)
             result = await attack.run(target)
+
+            try:
+                verdict = await judge.judge(
+                    objective=attack.metadata.description,
+                    trace=result.trace,
+                )
+                result.trace["llm_judge"] = verdict.model_dump()
+                log.info(
+                    "judge_verdict",
+                    scan_id=scan.id,
+                    attack_id=attack.metadata.id,
+                    judge_succeeded=verdict.succeeded,
+                    backend=verdict.backend,
+                )
+            except Exception:  # noqa: BLE001
+                log.warning("judge_skipped", scan_id=scan.id, attack_id=attack.metadata.id)
+
             finding = attack.to_finding(scan.id, result)
             findings.append(finding)
             log.info(

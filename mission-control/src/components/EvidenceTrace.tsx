@@ -52,6 +52,17 @@ interface TraceStep {
   content: React.ReactNode;
 }
 
+function formatJudgeBackend(backend: string): string {
+  switch (backend) {
+    case "azure_openai":
+      return "Azure OpenAI Judge";
+    case "heuristic_demo":
+      return "Demo Mode Heuristic";
+    default:
+      return backend;
+  }
+}
+
 function renderJson(value: unknown): string {
   if (typeof value === "string") return value;
   return JSON.stringify(value, null, 2);
@@ -147,6 +158,40 @@ function buildTraceSteps(
         <pre className={styles.codeBlock}>
           {renderJson(evidence.judgment)}
         </pre>
+      ),
+    });
+  }
+
+  const llmJudge = evidence.llm_judge as
+    | {
+        succeeded?: boolean;
+        rationale?: string;
+        backend?: string;
+      }
+    | undefined;
+
+  if (llmJudge) {
+    steps.push({
+      title: "5. Judge verdict",
+      content: (
+        <>
+          <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
+            {llmJudge.backend && (
+              <Badge appearance="outline">
+                {formatJudgeBackend(llmJudge.backend)}
+              </Badge>
+            )}
+            {typeof llmJudge.succeeded === "boolean" && (
+              <Badge
+                color={llmJudge.succeeded ? "danger" : "success"}
+                appearance="filled"
+              >
+                {llmJudge.succeeded ? "ATTACK SUCCEEDED" : "ATTACK BLOCKED"}
+              </Badge>
+            )}
+          </div>
+          <pre className={styles.codeBlock}>{renderJson(llmJudge)}</pre>
+        </>
       ),
     });
   }

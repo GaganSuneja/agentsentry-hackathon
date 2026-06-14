@@ -30,9 +30,30 @@ def _configure_logging(level: str) -> None:
     )
 
 
+_TELEMETRY_CONFIGURED = False
+
+
+def _configure_telemetry(settings) -> None:
+    global _TELEMETRY_CONFIGURED  # noqa: PLW0603
+    if _TELEMETRY_CONFIGURED or not settings.applicationinsights_connection_string:
+        return
+    try:
+        from azure.monitor.opentelemetry import configure_azure_monitor
+        configure_azure_monitor(
+            connection_string=settings.applicationinsights_connection_string,
+        )
+        _TELEMETRY_CONFIGURED = True
+        logging.getLogger(__name__).info(
+            "Azure Monitor OpenTelemetry configured — telemetry flowing to Application Insights"
+        )
+    except Exception as exc:  # noqa: BLE001
+        logging.getLogger(__name__).warning("Azure Monitor setup failed: %s", exc)
+
+
 def create_app() -> FastAPI:
     settings = get_settings()
     _configure_logging(settings.log_level)
+    _configure_telemetry(settings)
 
     app = FastAPI(
         title="AgentSentry",
