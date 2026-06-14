@@ -58,6 +58,20 @@ function statusColor(status: string): "danger" | "success" | "warning" {
   }
 }
 
+function extractJudgeRationale(evidence: Record<string, unknown>): string | null {
+  if (typeof evidence.judgment === "string") {
+    return evidence.judgment;
+  }
+
+  const llmJudge = evidence.llm_judge;
+  if (typeof llmJudge !== "object" || llmJudge === null) {
+    return null;
+  }
+
+  const rationale = (llmJudge as { rationale?: unknown }).rationale;
+  return typeof rationale === "string" ? rationale : null;
+}
+
 export function FindingsTable({
   findings,
   scanId,
@@ -86,12 +100,7 @@ export function FindingsTable({
       </TableHeader>
       <TableBody>
         {sorted.map((finding) => {
-          const judgment =
-            typeof finding.evidence.judgment === "string"
-              ? finding.evidence.judgment
-              : typeof finding.evidence.llm_judge?.rationale === "string"
-                ? finding.evidence.llm_judge.rationale
-                : null;
+          const judgment = extractJudgeRationale(finding.evidence);
 
           return (
             <TableRow key={finding.id}>
